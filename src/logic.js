@@ -55,7 +55,9 @@ function parseRanked(text, tasks) {
   const remaining = [...tasks];
   const ranked = [];
   for (const line of lines) {
-    const m = line.match(/^(.+?)\s*[-–—:]\s*(.+)$/);
+    // Require whitespace around the separator so a hyphenated task (e.g.
+    // "Fix the sign-up form") doesn't get mis-split mid-word.
+    const m = line.match(/^(.+?)\s[-–—:]\s(.+)$/);
     const taskPart = m ? m[1].trim() : line;
     const reasonPart = m ? m[2].trim() : "";
     const matched = matchOriginalTask(taskPart, remaining);
