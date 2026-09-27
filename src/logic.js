@@ -68,6 +68,26 @@ function parseRanked(text, tasks) {
   return { ranked, remaining };
 }
 
+// The model can place its own ordering inconsistently with its own stated
+// reasoning (e.g. calling a same-day task "critical" but still ranking it
+// last, below a "due tomorrow" task). Rather than trust the model's raw
+// ordering, apply a deterministic urgency-tier override based on explicit
+// time cues in the task text itself, preserving the model's relative order
+// within each tier (a stable sort).
+function urgencyTier(task) {
+  const lower = task.toLowerCase();
+  if (/\b(today|this morning|this afternoon|this evening|now|asap|immediately|urgent)\b/.test(lower)) return 0;
+  if (/\btomorrow\b/.test(lower)) return 1;
+  return 2;
+}
+
+function applyUrgencyOverride(ranked) {
+  return ranked
+    .map((r, i) => ({ ...r, _tier: urgencyTier(r.task), _i: i }))
+    .sort((a, b) => a._tier - b._tier || a._i - b._i)
+    .map(({ _tier, _i, ...rest }) => rest);
+}
+
 function fallbackOrder(tasks) {
   return tasks.map((t) => ({ task: t, reason: "" }));
 }
@@ -135,6 +155,7 @@ export async function sortPriorities(modelId, body) {
   }
 
   if (ranked.length !== tasks.length) ranked = fallbackOrder(tasks);
+  ranked = applyUrgencyOverride(ranked);
 
   return { tasks, ranked };
 }
